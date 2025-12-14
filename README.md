@@ -1,11 +1,42 @@
-Este proyecto consiste en una API REST construida con Node.js y Express, organizada bajo el patrón Modelo–Vista–Controlador (MVC). La idea principal es tener bien separadas las responsabilidades de cada parte de la aplicación, de forma que el código sea más claro y fácil de mantener.
+Arquitectura MVC en API REST con Node.js
+Este proyecto implementa una API RESTful escalable utilizando Node.js y Express. El núcleo del diseño es la estricta separación de responsabilidades mediante el patrón Modelo-Vista-Controlador (MVC), lo que permite un código modular, comprobable y fácil de mantener.
+A continuación se detalla la responsabilidad técnica de cada capa:
 
-En el modelo se encuentra la definición de lo que sería nuestra “base de datos en memoria”. En lugar de conectar a una base real, definimos un arreglo con algunos usuarios iniciales, cada uno con su id, nombre, email, edad y estado activo. Para el id utilizamos la función randomUUID de Node.js, que nos garantiza que cada usuario tenga un identificador único. El modelo incluye funciones para manipular este arreglo: obtener todos los usuarios, buscar uno por id, agregar un nuevo usuario y actualizar uno existente. Aquí no nos preocupamos por validar nada, el modelo simplemente recibe datos y los acomoda según la estructura definida.
+1. El Modelo (Model)
+  Responsabilidad: Abstracción y Persistencia de Datos
+    El modelo actúa como la única fuente de la verdad para la estructura de datos. En esta implementación, simulamos una base de datos utilizando persistencia en memoria (arrays).
+   Gestión de Estado: Define la estructura del objeto Usuario (id, nombre, email, edad, activo).
+     Identidad Única: Implementa la generación de claves primarias UUID v4 mediante la librería nativa crypto (randomUUID), garantizando la atomicidad de los identificadores sin colisiones.
+     Agnosticismo: El modelo es "tonto" intencionalmente; no valida reglas de negocio ni conoce el protocolo HTTP. Solo se encarga de las operaciones CRUD (crear, leer, actualizar) directas sobre el arreglo de datos.
+2. El Controlador (Controller)
+   Responsabilidad: Lógica de Negocio y Guardianía de Datos
+   El controlador es el cerebro de la aplicación. Intercepta las solicitudes, procesa la lógica y decide qué respuesta enviar. Su función principal es proteger la integridad del modelo mediante validaciones estrictas antes de permitir cualquier escritura.
+   Funciones clave implementadas:
 
-En el controlador es donde realmente le damos lógica a la aplicación. Cada función corresponde a una operación que el cliente puede solicitar. Por ejemplo, tenemos findAll que pide al modelo la lista de usuarios y la devuelve como respuesta HTTP en formato JSON, findById que busca un usuario específico y responde con él o un 404 si no existe, addUser que valida los datos antes de crear un nuevo registro, y updateUser que revisa los datos enviados y actualiza solo lo que corresponda. Aquí es también donde implementamos la validación, revisando que el nombre no tenga números, que la edad sea un número válido entre 1 y 100 y que el email tenga el formato correcto con arroba y punto. Si algo no cumple, el controlador corta la ejecución y responde con un error claro en lugar de dejar pasar datos incorrectos al modelo.
+   Orquestación: Recibe la petición del cliente (req), consulta al Modelo y formatea la respuesta (res) en estricto JSON.
 
-Las rutas actúan como los caminos que llevan a cada controlador. Definimos endpoints como GET /api/users para obtener todos los usuarios, GET /api/users/:id para buscar por id, POST /api/users para crear y PUT /api/users/:id para actualizar. Cada ruta está conectada con la función del controlador que le corresponde, de modo que Express sabe qué hacer según la URL y el método HTTP que reciba.
+   Manejo de Errores: Controla los flujos de excepción, retornando códigos HTTP adecuados (404 si no se encuentra un recurso, 400 si la petición es incorrecta).
 
-Finalmente, en app.js levantamos el servidor con Express, configuramos el uso de JSON en las peticiones y montamos nuestras rutas bajo la ruta base /api/users. El servidor queda escuchando en el puerto 3000 (o el que se defina en las variables de entorno) y a partir de ahí ya podemos probar todo con herramientas como Insomnia o Postman.
+   Validación de Datos (Data Sanitization):
+   Nombre: Se rechaza cualquier cadena que contenga caracteres numéricos.Edad: Se fuerza un rango lógico (1 - 100 años).
+   Email: Verificación de formato mediante chequeo de sintaxis (presencia de @ y .).
+   Si cualquiera de estas reglas falla, el controlador corta la ejecución inmediatamente y retorna un error descriptivo, evitando "ensuciar" el modelo.
 
-En resumen, este proyecto me permitió entender cómo aplicar el patrón MVC en una API REST: el modelo administra los datos, el controlador gestiona la lógica de negocio y las validaciones, y las rutas definen los accesos.
+   3. Las Rutas (Routes)
+
+Responsabilidad: Interfaz de Red y Puntos de Entrada
+
+La capa de enrutamiento define la API pública y actúa como el despachador de tráfico. Mapea las URLs y los verbos HTTP específicos hacia las funciones del controlador correspondientes.
+Endpoints definidos:
+GET /api/users $\rightarrow$ Invoca findAll (Recuperación total).
+GET /api/users/:id $\rightarrow$ Invoca findById (Búsqueda granular).
+POST /api/users $\rightarrow$ Invoca addUser (Creación segura).
+PUT /api/users/:id $\rightarrow$ Invoca updateUser (Mutación controlada).
+Esta separación permite que, si en el futuro cambia la URL base, no sea necesario tocar la lógica del controlador ni del modelo.
+
+Inicialización (App)
+El punto de entrada (app.js) ensambla los componentes:
+  Inicializa el servidor Express.
+  Configura el middleware para el parseo de application/json.
+  Monta el enrutador de usuarios bajo el prefijo /api/users.
+  Expone el servicio en el puerto 3000, listo para ser consumido por clientes HTTP como Insomnia o Postman.
